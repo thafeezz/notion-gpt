@@ -29,6 +29,11 @@ class RequestBody(BaseModel):
     properties: dict
 
 
+class Row(BaseModel):
+    database_id: str
+    properties: dict
+
+
 @app.get("/pages/")
 async def get_pages(query: str = Query(None)):
     if query:
@@ -43,6 +48,8 @@ async def get_pages(query: str = Query(None)):
             try:
                 response = await client.post(url, headers=headers, json=data)
                 pages = response.json()
+
+                print(json.dumps(pages, indent=4))
 
                 if pages["results"]:
                     for page in pages["results"]:
@@ -67,8 +74,8 @@ async def get_pages(query: str = Query(None)):
                             )
 
                     return {
-                        "pages": page_response,
-                        "databases": database_response,
+                        "parent_pages": page_response,
+                        "database_pages": database_response,
                     }
                 else:
                     raise HTTPException(status_code=404, detail="Page not found")
@@ -130,7 +137,14 @@ async def get_databases():
 
 
 @app.post("/create")
-async def create_item():
-    url = "https://api.notion.com/v1/databases/"
+async def create_item(row: Row):
+    url = "https://api.notion.com/v1/pages/"
 
-    
+    data = {"parent": {"database_id": row.database_id}, "properties": row.properties}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url, headers=headers, json=data)
+            return response.json()
+        except httpx.HTTPStatusError as exc:
+            print(f"HTTP status error: {exc}")
